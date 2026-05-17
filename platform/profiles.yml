@@ -1,0 +1,8 @@
+as_built_platform:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Relative to the repo root — Platform.build() always invokes dbt from there.
+      path: "platform/warehouse.duckdb"
+      schema: main
