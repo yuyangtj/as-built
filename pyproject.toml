@@ -8,6 +8,7 @@ dependencies = [
     "click>=8.1",
     "pydantic>=2.7",
     "dbt-duckdb>=1.8",
+    "anthropic>=0.40",
 ]
 
 [project.scripts]

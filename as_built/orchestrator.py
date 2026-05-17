@@ -11,17 +11,14 @@ order:
 The order matters. Work arrives at the start of a tick, work finishes at the
 end. Reversing those collapses two narrative beats into one timestamp and the
 replay loses its rhythm.
-
-For v0 with one worker and stub everything, this is ~100 lines. The shape will
-stay the same as components get replaced; only the implementations of
-generators, workers, and the verification step change.
 """
 
 from as_built.backlog import Backlog
 from as_built.event_store import append
 from as_built.events import Event
+from as_built.platform import Platform
 from as_built.stub_generator import StubGenerator
-from as_built.stub_worker import StubWorker
+from as_built.worker import Worker
 
 
 class Orchestrator:
@@ -29,9 +26,10 @@ class Orchestrator:
         self.tick: int = 0
         self.backlog = Backlog()
         self.generator = StubGenerator(interval=5)
-        self.worker = StubWorker()
+        self.platform = Platform()
+        self.worker = Worker()
 
-    # ---- the tick loop ---------------------------------------------------
+    # ---- the tick loop -------------------------------------------------------
 
     def run(self, ticks: int) -> None:
         """Run the campaign for `ticks` ticks."""
@@ -40,12 +38,8 @@ class Orchestrator:
             self._solicit_work()
             self._dispatch()
             self._step_workers()
-            # NB: in this stub the worker emits its own "resolved" event on
-            # the same tick as its final action, so there's nothing extra to
-            # do in step 5. When the real worker arrives, verification and
-            # resolution_check happen here.
 
-    # ---- the five steps --------------------------------------------------
+    # ---- the five steps ------------------------------------------------------
 
     def _advance_clock(self) -> None:
         self.tick += 1
@@ -78,7 +72,10 @@ class Orchestrator:
         if ticket is None:
             return
         self.backlog.set_status(ticket.id, "pulled")
-        self.worker.assign(ticket)
+        # Build the work order: live model list + ticket. The briefing prose
+        # and layer description are formatted inside worker.assign().
+        models = self.platform.list_models()
+        self.worker.assign(ticket, models)
         append(Event(
             tick=self.tick,
             type="ticket_pulled",
@@ -89,20 +86,28 @@ class Orchestrator:
     def _step_workers(self) -> None:
         if self.worker.idle:
             return
-        action_type, note, ticket_id, done = self.worker.step()
+        action_type, payload, ticket_id, done = self.worker.step()
         append(Event(
             tick=self.tick,
             type=f"worker_action:{action_type}",
             actor=f"worker:{self.worker.id}",
             subject=str(ticket_id),
-            payload={"note": note},
+            payload=payload,
         ))
         if done:
             self.backlog.set_status(ticket_id, "resolved")
+            # Canonical verification: orchestrator runs one clean build after
+            # submit_resolution so the outcome is recorded independently of
+            # any exploratory builds the worker ran mid-investigation.
+            result = self.platform.build()
             append(Event(
                 tick=self.tick,
                 type="ticket_resolved",
                 actor=f"worker:{self.worker.id}",
                 subject=str(ticket_id),
-                payload={"verification": "stub-pass"},
+                payload={
+                    "verification": "pass" if result.returncode == 0 else "fail",
+                    "returncode": result.returncode,
+                    "stderr_tail": result.stderr[-500:] if result.stderr else "",
+                },
             ))
