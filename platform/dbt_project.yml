@@ -1,0 +1,19 @@
+name: 'as_built_platform'
+version: '1.0.0'
+config-version: 2
+
+profile: 'as_built_platform'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+target-path: "target"
+clean-targets: ["target"]
+
+models:
+  as_built_platform:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    mart:
+      +materialized: table

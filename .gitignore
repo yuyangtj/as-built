@@ -8,3 +8,11 @@ build/
 .env
 
 .DS_Store
+gotchas.md
+
+# generated platform artifacts
+platform/target/
+platform/warehouse.duckdb
+platform/dashboard.csv
+platform/logs/
+platform/.user.yml
