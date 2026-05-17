@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: as_built
+      POSTGRES_PASSWORD: as_built
+      POSTGRES_DB: as_built
+    ports:
+      - "5433:5432"  # avoid clashing with any existing local postgres
+    volumes:
+      - as_built_pg:/var/lib/postgresql/data
+
+volumes:
+  as_built_pg:
